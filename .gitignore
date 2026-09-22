@@ -1,0 +1,48 @@
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+.env
+# google-services.json is safe to commit (public API key, restricted by package name/SHA fingerprint) and required by EAS cloud builds
+*firebase-adminsdk*.json
+limpopo-app-firebase-adminsdk-fbsvc-6e34780d72.json
+
+# macOS
+.DS_Store
+
+# Temporary files created by Metro to check the health of the file watcher
+.metro-health-check*
+
+# Local repo repair backups
+.git.corrupt-backup-*/
+output-build.log
+# Dependencies and system files
+node_modules/
+.DS_Store
+
+# Android build artifacts (native android/ project is tracked; only build output is ignored)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+# iOS native project is not currently tracked (unrelated iCloud file-provider issues on this machine)
+ios/
+.expo/
+dist/
+web-build/
+
+# Backup folders & extra outputs (Crucial for your repo)
+*.backup*
+limpopo-driver.backup*
+output/
+
+# Logs and environment files
+*.log
+.env*.local

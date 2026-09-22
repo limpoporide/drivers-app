@@ -1,0 +1,411 @@
+diff --git a/node_modules/@googlemaps/react-native-navigation-sdk/android/src/main/java/com/google/android/react/navsdk/NavModule.java b/node_modules/@googlemaps/react-native-navigation-sdk/android/src/main/java/com/google/android/react/navsdk/NavModule.java
+index 2bd2ed6..b6fc9f2 100644
+--- a/node_modules/@googlemaps/react-native-navigation-sdk/android/src/main/java/com/google/android/react/navsdk/NavModule.java
++++ b/node_modules/@googlemaps/react-native-navigation-sdk/android/src/main/java/com/google/android/react/navsdk/NavModule.java
+@@ -15,6 +15,7 @@ package com.google.android.react.navsdk;
+ 
+ import android.app.Activity;
+ import android.location.Location;
++import android.util.Log;
+ import androidx.annotation.NonNull;
+ import androidx.annotation.Nullable;
+ import androidx.lifecycle.Observer;
+@@ -62,6 +63,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
+ public class NavModule extends NativeNavModuleSpec
+     implements INavigationCallback, LifecycleEventListener {
+   public static final String REACT_CLASS = NAME;
++  private static final String TAG = "NavModule";
+   private static NavModule instance;
+   private static ModuleReadyListener moduleReadyListener;
+ 
+@@ -149,6 +151,25 @@ public class NavModule extends NativeNavModuleSpec
+     return mNavigator;
+   }
+ 
++  private boolean canEmitToJs() {
++    return reactContext != null && reactContext.hasActiveReactInstance();
++  }
++
++  private void safeEmit(String eventName, Runnable emitter) {
++    if (!canEmitToJs()) {
++      Log.w(TAG, "Skipping " + eventName + " because the React bridge is not active.");
++      return;
++    }
++
++    try {
++      emitter.run();
++    } catch (NullPointerException error) {
++      Log.w(TAG, "Skipping " + eventName + " because the JS callback bridge is unavailable.", error);
++    } catch (RuntimeException error) {
++      Log.w(TAG, "Skipping " + eventName + " because event emission failed.", error);
++    }
++  }
++
+   @NonNull
+   @Override
+   public String getName() {
+@@ -459,7 +480,7 @@ public class NavModule extends NativeNavModuleSpec
+             WritableMap params = Arguments.createMap();
+             params.putMap("arrivalEvent", arrivalEventMap);
+ 
+-            emitOnArrival(params);
++            safeEmit("onArrival", () -> emitOnArrival(params));
+           }
+         };
+     mNavigator.addArrivalListener(mArrivalListener);
+@@ -468,7 +489,7 @@ public class NavModule extends NativeNavModuleSpec
+         new Navigator.RouteChangedListener() {
+           @Override
+           public void onRouteChanged() {
+-            emitOnRouteChanged();
++            safeEmit("onRouteChanged", NavModule.this::emitOnRouteChanged);
+           }
+         };
+     mNavigator.addRouteChangedListener(mRouteChangedListener);
+@@ -477,7 +498,7 @@ public class NavModule extends NativeNavModuleSpec
+         new Navigator.TrafficUpdatedListener() {
+           @Override
+           public void onTrafficUpdated() {
+-            emitOnTrafficUpdated();
++            safeEmit("onTrafficUpdated", NavModule.this::emitOnTrafficUpdated);
+           }
+         };
+     mNavigator.addTrafficUpdatedListener(mTrafficUpdatedListener);
+@@ -486,7 +507,9 @@ public class NavModule extends NativeNavModuleSpec
+         new Navigator.ReroutingListener() {
+           @Override
+           public void onReroutingRequestedByOffRoute() {
+-            emitOnReroutingRequestedByOffRoute();
++            safeEmit(
++                "onReroutingRequestedByOffRoute",
++                NavModule.this::emitOnReroutingRequestedByOffRoute);
+           }
+         };
+     mNavigator.addReroutingListener(mReroutingListener);
+@@ -505,7 +528,9 @@ public class NavModule extends NativeNavModuleSpec
+               WritableMap params = Arguments.createMap();
+               params.putMap("timeAndDistance", timeAndDistanceMap);
+ 
+-              emitOnRemainingTimeOrDistanceChanged(params);
++              safeEmit(
++                  "onRemainingTimeOrDistanceChanged",
++                  () -> emitOnRemainingTimeOrDistanceChanged(params));
+             }
+           }
+         };
+@@ -708,7 +733,7 @@ public class NavModule extends NativeNavModuleSpec
+     }
+ 
+     mNavigator.startGuidance();
+-    emitOnStartGuidance();
++    safeEmit("onStartGuidance", this::emitOnStartGuidance);
+     promise.resolve(true);
+   }
+ 
+@@ -991,7 +1016,7 @@ public class NavModule extends NativeNavModuleSpec
+               if (mIsListeningRoadSnappedLocation) {
+                 WritableMap params = Arguments.createMap();
+                 params.putMap("location", ObjectTranslationUtil.getMapFromLocation(location));
+-                emitOnLocationChanged(params);
++                safeEmit("onLocationChanged", () -> emitOnLocationChanged(params));
+               }
+             }
+ 
+@@ -1000,7 +1025,7 @@ public class NavModule extends NativeNavModuleSpec
+               if (mIsListeningRoadSnappedLocation) {
+                 WritableMap params = Arguments.createMap();
+                 params.putMap("location", ObjectTranslationUtil.getMapFromLocation(location));
+-                emitOnRawLocationChanged(params);
++                safeEmit("onRawLocationChanged", () -> emitOnRawLocationChanged(params));
+               }
+             }
+           };
+@@ -1052,14 +1077,14 @@ public class NavModule extends NativeNavModuleSpec
+     turnByTurnEvents.pushMap(map);
+     WritableMap params = Arguments.createMap();
+     params.putArray("turnByTurnEvents", turnByTurnEvents);
+-    emitOnTurnByTurn(params);
++    safeEmit("onTurnByTurn", () -> emitOnTurnByTurn(params));
+   }
+ 
+   @Override
+   public void logDebugInfo(String info) {
+     WritableMap params = Arguments.createMap();
+     params.putString("message", info);
+-    emitLogDebugInfo(params);
++    safeEmit("logDebugInfo", () -> emitLogDebugInfo(params));
+   }
+ 
+   @Override
+diff --git a/node_modules/@googlemaps/react-native-navigation-sdk/lib/commonjs/navigation/navigation/useNavigationController.js b/node_modules/@googlemaps/react-native-navigation-sdk/lib/commonjs/navigation/navigation/useNavigationController.js
+index fbe0def..25ce435 100644
+--- a/node_modules/@googlemaps/react-native-navigation-sdk/lib/commonjs/navigation/navigation/useNavigationController.js
++++ b/node_modules/@googlemaps/react-native-navigation-sdk/lib/commonjs/navigation/navigation/useNavigationController.js
+@@ -93,37 +93,47 @@ const useNavigationController = (termsAndConditionsDialogOptions, taskRemovedBeh
+   const onTurnByTurnRef = (0, _react.useRef)(null);
+   const logDebugInfoRef = (0, _react.useRef)(null);
+ 
+-  // Subscribe to events at the top level, routing to refs
+-  (0, _shared.useEventSubscription)('NavModule', 'onStartGuidance', () => {
++  // Subscribe to events at the top level, routing to refs.
++  const onStartGuidanceHandler = (0, _react.useCallback)(() => {
+     onStartGuidanceRef.current?.();
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'onLocationChanged', payload => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onStartGuidance', onStartGuidanceHandler);
++  const onLocationChangedHandler = (0, _react.useCallback)(payload => {
+     onLocationChangedRef.current?.(payload.location);
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'onRawLocationChanged', payload => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onLocationChanged', onLocationChangedHandler);
++  const onRawLocationChangedHandler = (0, _react.useCallback)(payload => {
+     onRawLocationChangedRef.current?.(payload.location);
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'onRouteChanged', () => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onRawLocationChanged', onRawLocationChangedHandler);
++  const onRouteChangedHandler = (0, _react.useCallback)(() => {
+     onRouteChangedRef.current?.();
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'onReroutingRequestedByOffRoute', () => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onRouteChanged', onRouteChangedHandler);
++  const onReroutingRequestedByOffRouteHandler = (0, _react.useCallback)(() => {
+     onReroutingRequestedByOffRouteRef.current?.();
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'onTrafficUpdated', () => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onReroutingRequestedByOffRoute', onReroutingRequestedByOffRouteHandler);
++  const onTrafficUpdatedHandler = (0, _react.useCallback)(() => {
+     onTrafficUpdatedRef.current?.();
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'onRemainingTimeOrDistanceChanged', payload => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onTrafficUpdated', onTrafficUpdatedHandler);
++  const onRemainingTimeOrDistanceChangedHandler = (0, _react.useCallback)(payload => {
+     onRemainingTimeOrDistanceChangedRef.current?.(payload.timeAndDistance);
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'onArrival', payload => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onRemainingTimeOrDistanceChanged', onRemainingTimeOrDistanceChangedHandler);
++  const onArrivalHandler = (0, _react.useCallback)(payload => {
+     onArrivalRef.current?.(payload.arrivalEvent);
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'onTurnByTurn', payload => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onArrival', onArrivalHandler);
++  const onTurnByTurnHandler = (0, _react.useCallback)(payload => {
+     onTurnByTurnRef.current?.(payload.turnByTurnEvents);
+-  });
+-  (0, _shared.useEventSubscription)('NavModule', 'logDebugInfo', payload => {
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'onTurnByTurn', onTurnByTurnHandler);
++  const logDebugInfoHandler = (0, _react.useCallback)(payload => {
+     logDebugInfoRef.current?.(payload.message);
+-  });
++  }, []);
++  (0, _shared.useEventSubscription)('NavModule', 'logDebugInfo', logDebugInfoHandler);
+ 
+   // Create setter functions
+   const setOnStartGuidance = (0, _react.useCallback)(callback => {
+diff --git a/node_modules/@googlemaps/react-native-navigation-sdk/lib/module/navigation/navigation/useNavigationController.js b/node_modules/@googlemaps/react-native-navigation-sdk/lib/module/navigation/navigation/useNavigationController.js
+index 597a4d6..33bf742 100644
+--- a/node_modules/@googlemaps/react-native-navigation-sdk/lib/module/navigation/navigation/useNavigationController.js
++++ b/node_modules/@googlemaps/react-native-navigation-sdk/lib/module/navigation/navigation/useNavigationController.js
+@@ -89,37 +89,47 @@ export const useNavigationController = (termsAndConditionsDialogOptions, taskRem
+   const onTurnByTurnRef = useRef(null);
+   const logDebugInfoRef = useRef(null);
+ 
+-  // Subscribe to events at the top level, routing to refs
+-  useEventSubscription('NavModule', 'onStartGuidance', () => {
++  // Subscribe to events at the top level, routing to refs.
++  const onStartGuidanceHandler = useCallback(() => {
+     onStartGuidanceRef.current?.();
+-  });
+-  useEventSubscription('NavModule', 'onLocationChanged', payload => {
++  }, []);
++  useEventSubscription('NavModule', 'onStartGuidance', onStartGuidanceHandler);
++  const onLocationChangedHandler = useCallback(payload => {
+     onLocationChangedRef.current?.(payload.location);
+-  });
+-  useEventSubscription('NavModule', 'onRawLocationChanged', payload => {
++  }, []);
++  useEventSubscription('NavModule', 'onLocationChanged', onLocationChangedHandler);
++  const onRawLocationChangedHandler = useCallback(payload => {
+     onRawLocationChangedRef.current?.(payload.location);
+-  });
+-  useEventSubscription('NavModule', 'onRouteChanged', () => {
++  }, []);
++  useEventSubscription('NavModule', 'onRawLocationChanged', onRawLocationChangedHandler);
++  const onRouteChangedHandler = useCallback(() => {
+     onRouteChangedRef.current?.();
+-  });
+-  useEventSubscription('NavModule', 'onReroutingRequestedByOffRoute', () => {
++  }, []);
++  useEventSubscription('NavModule', 'onRouteChanged', onRouteChangedHandler);
++  const onReroutingRequestedByOffRouteHandler = useCallback(() => {
+     onReroutingRequestedByOffRouteRef.current?.();
+-  });
+-  useEventSubscription('NavModule', 'onTrafficUpdated', () => {
++  }, []);
++  useEventSubscription('NavModule', 'onReroutingRequestedByOffRoute', onReroutingRequestedByOffRouteHandler);
++  const onTrafficUpdatedHandler = useCallback(() => {
+     onTrafficUpdatedRef.current?.();
+-  });
+-  useEventSubscription('NavModule', 'onRemainingTimeOrDistanceChanged', payload => {
++  }, []);
++  useEventSubscription('NavModule', 'onTrafficUpdated', onTrafficUpdatedHandler);
++  const onRemainingTimeOrDistanceChangedHandler = useCallback(payload => {
+     onRemainingTimeOrDistanceChangedRef.current?.(payload.timeAndDistance);
+-  });
+-  useEventSubscription('NavModule', 'onArrival', payload => {
++  }, []);
++  useEventSubscription('NavModule', 'onRemainingTimeOrDistanceChanged', onRemainingTimeOrDistanceChangedHandler);
++  const onArrivalHandler = useCallback(payload => {
+     onArrivalRef.current?.(payload.arrivalEvent);
+-  });
+-  useEventSubscription('NavModule', 'onTurnByTurn', payload => {
++  }, []);
++  useEventSubscription('NavModule', 'onArrival', onArrivalHandler);
++  const onTurnByTurnHandler = useCallback(payload => {
+     onTurnByTurnRef.current?.(payload.turnByTurnEvents);
+-  });
+-  useEventSubscription('NavModule', 'logDebugInfo', payload => {
++  }, []);
++  useEventSubscription('NavModule', 'onTurnByTurn', onTurnByTurnHandler);
++  const logDebugInfoHandler = useCallback(payload => {
+     logDebugInfoRef.current?.(payload.message);
+-  });
++  }, []);
++  useEventSubscription('NavModule', 'logDebugInfo', logDebugInfoHandler);
+ 
+   // Create setter functions
+   const setOnStartGuidance = useCallback(callback => {
+diff --git a/node_modules/@googlemaps/react-native-navigation-sdk/src/navigation/navigation/useNavigationController.ts b/node_modules/@googlemaps/react-native-navigation-sdk/src/navigation/navigation/useNavigationController.ts
+index 9dc04de..c1448b5 100644
+--- a/node_modules/@googlemaps/react-native-navigation-sdk/src/navigation/navigation/useNavigationController.ts
++++ b/node_modules/@googlemaps/react-native-navigation-sdk/src/navigation/navigation/useNavigationController.ts
+@@ -153,69 +153,94 @@ export const useNavigationController = (
+   >(null);
+   const logDebugInfoRef = useRef<((message: string) => void) | null>(null);
+ 
+-  // Subscribe to events at the top level, routing to refs
+-  useEventSubscription('NavModule', 'onStartGuidance', () => {
++  // Subscribe to events at the top level, routing to refs.
++  // Handlers are memoized with useCallback so useEventSubscription does not
++  // tear down and recreate the native listener on every render. Native GMS
++  // listeners fire independently of JS subscription state, so a teardown/
++  // recreate churn window can crash the app when the emitter has no active
++  // JS callback attached at the moment a native event fires.
++  const onStartGuidanceHandler = useCallback(() => {
+     onStartGuidanceRef.current?.();
+-  });
++  }, []);
++  useEventSubscription('NavModule', 'onStartGuidance', onStartGuidanceHandler);
+ 
++  const onLocationChangedHandler = useCallback((payload: { location: Location }) => {
++    onLocationChangedRef.current?.(payload.location);
++  }, []);
+   useEventSubscription<{ location: Location }>(
+     'NavModule',
+     'onLocationChanged',
+-    payload => {
+-      onLocationChangedRef.current?.(payload.location);
+-    }
++    onLocationChangedHandler
+   );
+ 
++  const onRawLocationChangedHandler = useCallback((payload: { location: Location }) => {
++    onRawLocationChangedRef.current?.(payload.location);
++  }, []);
+   useEventSubscription<{ location: Location }>(
+     'NavModule',
+     'onRawLocationChanged',
+-    payload => {
+-      onRawLocationChangedRef.current?.(payload.location);
+-    }
++    onRawLocationChangedHandler
+   );
+ 
+-  useEventSubscription('NavModule', 'onRouteChanged', () => {
++  const onRouteChangedHandler = useCallback(() => {
+     onRouteChangedRef.current?.();
+-  });
++  }, []);
++  useEventSubscription('NavModule', 'onRouteChanged', onRouteChangedHandler);
+ 
+-  useEventSubscription('NavModule', 'onReroutingRequestedByOffRoute', () => {
++  const onReroutingRequestedByOffRouteHandler = useCallback(() => {
+     onReroutingRequestedByOffRouteRef.current?.();
+-  });
++  }, []);
++  useEventSubscription(
++    'NavModule',
++    'onReroutingRequestedByOffRoute',
++    onReroutingRequestedByOffRouteHandler
++  );
+ 
+-  useEventSubscription('NavModule', 'onTrafficUpdated', () => {
++  const onTrafficUpdatedHandler = useCallback(() => {
+     onTrafficUpdatedRef.current?.();
+-  });
++  }, []);
++  useEventSubscription('NavModule', 'onTrafficUpdated', onTrafficUpdatedHandler);
+ 
++  const onRemainingTimeOrDistanceChangedHandler = useCallback(
++    (payload: { timeAndDistance: TimeAndDistance }) => {
++      onRemainingTimeOrDistanceChangedRef.current?.(payload.timeAndDistance);
++    },
++    []
++  );
+   useEventSubscription<{ timeAndDistance: TimeAndDistance }>(
+     'NavModule',
+     'onRemainingTimeOrDistanceChanged',
+-    payload => {
+-      onRemainingTimeOrDistanceChangedRef.current?.(payload.timeAndDistance);
+-    }
++    onRemainingTimeOrDistanceChangedHandler
+   );
+ 
++  const onArrivalHandler = useCallback((payload: { arrivalEvent: ArrivalEvent }) => {
++    onArrivalRef.current?.(payload.arrivalEvent);
++  }, []);
+   useEventSubscription<{ arrivalEvent: ArrivalEvent }>(
+     'NavModule',
+     'onArrival',
+-    payload => {
+-      onArrivalRef.current?.(payload.arrivalEvent);
+-    }
++    onArrivalHandler
+   );
+ 
++  const onTurnByTurnHandler = useCallback(
++    (payload: { turnByTurnEvents: TurnByTurnEvent[] }) => {
++      onTurnByTurnRef.current?.(payload.turnByTurnEvents);
++    },
++    []
++  );
+   useEventSubscription<{ turnByTurnEvents: TurnByTurnEvent[] }>(
+     'NavModule',
+     'onTurnByTurn',
+-    payload => {
+-      onTurnByTurnRef.current?.(payload.turnByTurnEvents);
+-    }
++    onTurnByTurnHandler
+   );
+ 
++  const logDebugInfoHandler = useCallback((payload: { message: string }) => {
++    logDebugInfoRef.current?.(payload.message);
++  }, []);
+   useEventSubscription<{ message: string }>(
+     'NavModule',
+     'logDebugInfo',
+-    payload => {
+-      logDebugInfoRef.current?.(payload.message);
+-    }
++    logDebugInfoHandler
+   );
+ 
+   // Create setter functions

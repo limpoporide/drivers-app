@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Limpopo Driver",
+    "slug": "limpopo-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/Limpopo round 2.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff",
+      "dark": {
+        "image": "./assets/Limpopo round 2.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000"
+      }
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.limpopo.driver",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Limpopo Driver uses your microphone so you can call riders in the app."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.limpopo.driver",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH_CONNECT"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e0e50461-9e70-480c-8270-5c73c04ceb65"
+      }
+    },
+    "scheme": "limpopo-driver",
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-asset",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Limpopo Driver to access your location while you are online for ride requests."
+        }
+      ],
+      "expo-build-properties"
+    ]
+  }
+}
