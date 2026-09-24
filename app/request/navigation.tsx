@@ -990,6 +990,10 @@ function NativeNavigationScreen({
 
   const applyAudioGuidanceMode = useCallback(
     (muted: boolean) => {
+      if (!isNavigatorReady) {
+        return;
+      }
+
       const audioGuidanceMode = muted
         ? AudioGuidance.SILENT
         : AudioGuidance.VOICE_ALERTS_AND_GUIDANCE;
@@ -998,16 +1002,16 @@ function NativeNavigationScreen({
         console.log('[Driver Navigation] Failed to apply audio guidance mode', error);
       });
     },
-    [AudioGuidance.SILENT, AudioGuidance.VOICE_ALERTS_AND_GUIDANCE, navigationController]
+    [AudioGuidance.SILENT, AudioGuidance.VOICE_ALERTS_AND_GUIDANCE, isNavigatorReady, navigationController]
   );
 
   useEffect(() => {
-    if (!isSessionReady) {
+    if (!isSessionReady || !isNavigatorReady) {
       return;
     }
 
     void applyAudioGuidanceMode(isVoiceMuted);
-  }, [applyAudioGuidanceMode, isSessionReady, isVoiceMuted]);
+  }, [applyAudioGuidanceMode, isNavigatorReady, isSessionReady, isVoiceMuted]);
 
   useEffect(() => {
     if (!isSessionReady || (guidedStage !== 'toPickup' && guidedStage !== 'toDropoff')) {
@@ -1260,7 +1264,10 @@ function NativeNavigationScreen({
           }
         }
 
-        const termsAccepted = await navigationController.showTermsAndConditionsDialog();
+          const hasAcceptedTerms = await navigationController.areTermsAccepted();
+          const termsAccepted = hasAcceptedTerms
+            ? true
+            : await navigationController.showTermsAndConditionsDialog();
 
         if (!termsAccepted) {
           setNavigationError('Navigation terms were declined.');
@@ -1294,6 +1301,7 @@ function NativeNavigationScreen({
         setOnNavigationReady(() => {
           if (isActive) {
             setIsNavigatorReady(true);
+            applyAudioGuidanceMode(isVoiceMutedRef.current);
             setStatusMessage('Navigation ready.');
           }
         });
@@ -1684,13 +1692,23 @@ function NativeNavigationScreen({
     });
   };
 
-  const bannerMessage = navigationError ?? nextStep?.instruction ?? statusMessage;
+  const tripStageLabel = getTripStageLabel(tripStage);
+  const tripStageStatusMessage = getTripStageStatusMessage(tripStage);
+  const bannerMessage =
+    navigationError ??
+    nextStep?.instruction ??
+    (isGuidanceActive
+      ? tripStage === 'toDropoff'
+        ? 'Drop-off route active'
+        : 'Pickup route active'
+      : statusMessage === tripStageStatusMessage
+        ? tripStageLabel
+        : statusMessage);
   const bannerDetail = nextStep
     ? formatStepDistance(nextStep.distanceMeters)
-    : isGuidanceActive
-      ? currentDestination
-      : getTripStageStatusMessage(tripStage);
+    : tripStageStatusMessage;
   const bannerIconName = getManeuverIconName(nextStep?.maneuver ?? null);
+  const shouldShowBannerTitle = bannerMessage !== tripStageLabel;
 
   const handlePrimaryAction = async () => {
     const actionConfig = getTripActionConfig(tripStage);
@@ -1809,8 +1827,10 @@ function NativeNavigationScreen({
               <Ionicons name={bannerIconName as any} size={16} color={primaryActionTextColor} />
             </View>
             <View style={styles.statusCardHeaderText}>
-              <Text style={[styles.statusEyebrow, { color: theme.colors.primary }]}>{getTripStageLabel(tripStage)}</Text>
-              <Text style={[styles.statusTitle, { color: theme.colors.text }]} numberOfLines={2}>{bannerMessage}</Text>
+              <Text style={[styles.statusEyebrow, { color: theme.colors.primary }]}>{tripStageLabel}</Text>
+              {shouldShowBannerTitle ? (
+                <Text style={[styles.statusTitle, { color: theme.colors.text }]} numberOfLines={2}>{bannerMessage}</Text>
+              ) : null}
             </View>
           </View>
           <Text style={[styles.statusMessage, { color: theme.colors.textSecondary }]}>
@@ -2070,13 +2090,13 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 6,
+    paddingVertical: 12,
+    gap: 4,
   },
   statusCardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: 10,
   },
   statusCardIconWrap: {
     width: 30,
@@ -2088,26 +2108,26 @@ const styles = StyleSheet.create({
   },
   statusCardHeaderText: {
     flex: 1,
-    gap: 2,
+    gap: 1,
   },
   statusEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   statusTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
   statusMessage: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
   },
   statusDestination: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   errorText: {
     fontSize: 13,

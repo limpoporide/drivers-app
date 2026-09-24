@@ -639,36 +639,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   tabsContainer: {
     paddingVertical: 12,
   },
   tabs: {
-    paddingHorizontal: 20,
-    gap: 8,
+    paddingHorizontal: 16,
+    gap: 6,
   },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 24,
     borderWidth: 1,
   },
   listIcon: {
     marginRight: 6,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   tabBadge: {
@@ -691,14 +691,14 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   bookingsList: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 24,
   },
   dateGroup: {
     marginTop: 10,
   },
   dateHeader: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 8,
   },

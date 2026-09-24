@@ -132,6 +132,11 @@ const writeDismissedRequestKeys = async (keys: string[]) => {
 const stopRequestAlertSound = async () => {
   const activeSound = requestAlertSound;
 
+  console.log('[JobRequests] stopRequestAlertSound called', {
+    hadActiveSound: Boolean(activeSound),
+    wasPlaying: isRequestAlertPlaying,
+  });
+
   requestAlertSound = null;
   isRequestAlertPlaying = false;
 
@@ -154,10 +159,13 @@ const stopRequestAlertSound = async () => {
 
 const startRequestAlertSound = async () => {
   if (isRequestAlertPlaying) {
+    console.log('[JobRequests] startRequestAlertSound skipped because sound is already playing');
     return;
   }
 
   isRequestAlertPlaying = true;
+
+  console.log('[JobRequests] startRequestAlertSound called');
 
   try {
     await Audio.setAudioModeAsync({
@@ -174,6 +182,7 @@ const startRequestAlertSound = async () => {
     });
 
     requestAlertSound = sound;
+    console.log('[JobRequests] ping-ping.wav playback started successfully');
   } catch (error) {
     isRequestAlertPlaying = false;
     console.log('[JobRequests] Failed to start request alert sound', error);
@@ -680,6 +689,13 @@ export function JobRequestsProvider({ children }: React.PropsWithChildren) {
       (requestKey) => !previousActionableRequestKeys.includes(requestKey)
     );
 
+    console.log('[JobRequests] request sound evaluation', {
+      actionableRequestKeys,
+      previousActionableRequestKeys,
+      hasNewActionableRequest,
+      actionableRequestCount: actionableRequestKeys.length,
+    });
+
     previousActionableRequestKeys = actionableRequestKeys;
 
     if (actionableRequestKeys.length === 0) {
@@ -688,6 +704,7 @@ export function JobRequestsProvider({ children }: React.PropsWithChildren) {
     }
 
     if (hasNewActionableRequest) {
+      console.log('[JobRequests] new actionable request detected, triggering ping-ping.wav');
       void startRequestAlertSound();
     }
   }, [requests]);

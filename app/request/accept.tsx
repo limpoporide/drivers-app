@@ -806,9 +806,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   riderImage: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
   riderIdentityBlock: {
     flex: 1,
